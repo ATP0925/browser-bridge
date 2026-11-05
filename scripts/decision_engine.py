@@ -25,8 +25,7 @@ class DecisionEngine:
                 "preferred_domains": ["acadflow.dpdns.org", "youtube.com", "crunchyroll.com", "github.com", "vercel.com", "cloudflare.com"]
             },
             "secondary_chrome": {
-                "name": "Pratik Atpadkar",
-                "email": "vu4f2526072@pvppcoe.ac.in",
+                "name": "ATP0925",
                 "browser": "Chrome",
                 "cdp_port": 9223,
                 "role_type": "SECONDARY_FALLBACK",
@@ -34,13 +33,14 @@ class DecisionEngine:
             },
             "edge_personal": {
                 "name": "ATP0925",
-                "email": "atpadkarmaruti@gmail.com",
                 "browser": "Edge",
                 "cdp_port": 9225,
                 "role_type": "MICROSOFT_ECOSYSTEM",
                 "preferred_domains": ["onedrive.live.com", "microsoft.com", "outlook.live.com"]
             }
         }
+        self.pii_rule_enforced = True
+        self.github_confirmation_required = 2
 
     def _load_profile(self):
         if os.path.exists(PROFILE_PATH):
@@ -102,20 +102,16 @@ class DecisionEngine:
 
     def resolve_git_identity(self, project_dir=None):
         """
-        Returns appropriate git committer credentials.
+        Returns sanitized git committer credentials with zero PII leaks.
+        Uses GitHub private noreply address to protect personal Gmails.
         """
-        if project_dir and "campusnotify" in str(project_dir).lower():
-            return {
-                "name": "ATP0925",
-                "email": "atpadkarmaruti@gmail.com",
-                "branch_default": "main",
-                "commit_convention": "Conventional Commits (feat, fix, docs, chore)"
-            }
         return {
             "name": "ATP0925",
-            "email": "atpadkarmaruti@gmail.com",
+            "email": "224713409+ATP0925@users.noreply.github.com",
             "branch_default": "main",
-            "commit_convention": "Conventional Commits (feat, fix, docs, chore)"
+            "commit_convention": "Conventional Commits (feat, fix, docs, chore)",
+            "pii_gate_required": True,
+            "required_confirmations": 2
         }
 
     def resolve_project_context(self, project_name):
