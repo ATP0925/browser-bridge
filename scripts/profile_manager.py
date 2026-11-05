@@ -12,6 +12,16 @@ import shutil
 import subprocess
 
 PROFILES_DEF = {
+    "brave_personal": {
+        "name": "Brave (Personal & AcadFlow)",
+        "browser": "brave",
+        "port": 9226,
+        "exe": r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+        "data_dir": os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data"),
+        "profile_dir": "Default",
+        "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_brave"),
+        "launcher": os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Brave.bat")
+    },
     "edge_maruti": {
         "name": "Edge (atpadkarmaruti@gmail.com)",
         "browser": "edge",
@@ -19,7 +29,8 @@ PROFILES_DEF = {
         "exe": r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
         "data_dir": os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\User Data"),
         "profile_dir": "Default",
-        "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_edge")
+        "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_edge"),
+        "launcher": os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Edge.bat")
     },
     "chrome_college": {
         "name": "Chrome College (vu4f2526072@pvppcoe.ac.in)",
@@ -119,8 +130,14 @@ def launch_profile(profile_key="edge_maruti"):
         return
 
     p = PROFILES_DEF[profile_key]
-    # Sync first to ensure fresh state
     sync_data(profile_key, os.path.join(p["ai_clone_dir"], "Default"))
+
+    launcher = p.get("launcher")
+    if launcher and os.path.isfile(launcher):
+        print(f"[*] Triggering desktop launcher: {launcher} ...")
+        subprocess.Popen(["cmd.exe", "/c", launcher], shell=False)
+        print(f"[✓] Spawned {p['name']} via desktop launcher on port {p['port']}!")
+        return
 
     cmd = [
         p["exe"],
@@ -144,3 +161,4 @@ if __name__ == "__main__":
         sync_data(key)
     else:
         list_profiles()
+
