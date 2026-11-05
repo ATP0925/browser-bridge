@@ -97,9 +97,12 @@ def cmd_gmail(args):
         print(f"\n❌ Error: {msg}")
 
 def cmd_open(args):
-    engine = CDPEngine()
-    success, msg = engine.open_tab(args.url)
-    print(f"Status: {msg}")
+    import failover_navigator
+    res = failover_navigator.navigate_with_fallback(args.url)
+    if res.get("fallback_triggered"):
+        print(f"Status: Loaded via Secondary Fallback: {res.get('engine')} ({res.get('url')})")
+    else:
+        print(f"Status: Loaded via Primary Engine: {res.get('engine')} ({res.get('url')})")
 
 def cmd_eval(args):
     engine = CDPEngine()

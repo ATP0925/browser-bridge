@@ -24,7 +24,7 @@ def find_active_port():
     """Probe common CDP ports, prioritizing the Authorized Browser on 9222."""
     for port in COMMON_PORTS:
         try:
-            r = requests.get(f"http://localhost:{port}/json/version", timeout=1.5)
+            r = requests.get(f"http://127.0.0.1:{port}/json/version", timeout=1.5)
             if r.status_code == 200:
                 data = r.json()
                 browser_name = data.get("Browser", "Unknown")
@@ -48,7 +48,7 @@ class CDPEngine:
         if not self.port:
             return []
         try:
-            r = requests.get(f"http://localhost:{self.port}/json", timeout=3)
+            r = requests.get(f"http://127.0.0.1:{self.port}/json", timeout=3)
             return [t for t in r.json() if t.get("type") == "page"]
         except Exception:
             return []
@@ -64,7 +64,7 @@ class CDPEngine:
 
         if self.port:
             try:
-                v = requests.get(f"http://localhost:{self.port}/json/version", timeout=3).json()
+                v = requests.get(f"http://127.0.0.1:{self.port}/json/version", timeout=3).json()
                 ws_url = v.get("webSocketDebuggerUrl")
                 if ws_url:
                     ws = websocket.create_connection(
@@ -81,7 +81,7 @@ class CDPEngine:
             except Exception:
                 try:
                     enc_url = urllib.parse.quote(url, safe=":/%?=&")
-                    r = requests.put(f"http://localhost:{self.port}/json/new?{enc_url}", timeout=3)
+                    r = requests.put(f"http://127.0.0.1:{self.port}/json/new?{enc_url}", timeout=3)
                     if r.status_code == 200:
                         return True, "Opened via Authorized HTTP endpoint"
                 except Exception:

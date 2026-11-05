@@ -17,33 +17,28 @@ class DecisionEngine:
     def __init__(self):
         self.profile = self._load_profile()
         self.identities = {
-            "college": {
+            "primary_brave": {
+                "name": "ATP0925",
+                "browser": "Brave",
+                "cdp_port": 9222,
+                "role_type": "PRIMARY_DEFAULT",
+                "preferred_domains": ["acadflow.dpdns.org", "youtube.com", "crunchyroll.com", "github.com", "vercel.com", "cloudflare.com"]
+            },
+            "secondary_chrome": {
                 "name": "Pratik Atpadkar",
                 "email": "vu4f2526072@pvppcoe.ac.in",
-                "institution": "PVPPCOE Mumbai",
                 "browser": "Chrome",
-                "cdp_port": 9222,
-                "preferred_domains": ["acadflow.dpdns.org", "mahadbt.maharashtra.gov.in", "classroom.google.com"]
+                "cdp_port": 9223,
+                "role_type": "SECONDARY_FALLBACK",
+                "preferred_domains": ["mahadbt.maharashtra.gov.in", "classroom.google.com"]
             },
-            "primary_dev": {
-                "name": "ATP0925",
-                "email": "atpadkarpratik00925@gmail.com",
-                "browser": "Chrome",
-                "cdp_port": 9222,
-                "preferred_domains": ["github.com", "vercel.com", "firebase.google.com", "crunchyroll.com"]
-            },
-            "secondary_personal": {
+            "edge_personal": {
                 "name": "ATP0925",
                 "email": "atpadkarmaruti@gmail.com",
                 "browser": "Edge",
                 "cdp_port": 9225,
+                "role_type": "MICROSOFT_ECOSYSTEM",
                 "preferred_domains": ["onedrive.live.com", "microsoft.com", "outlook.live.com"]
-            },
-            "research_brave": {
-                "name": "ATP0925",
-                "browser": "Brave",
-                "cdp_port": 9226,
-                "preferred_domains": ["cloudflare.com", "duckduckgo.com"]
             }
         }
 
@@ -80,6 +75,7 @@ class DecisionEngine:
     def resolve_browser_route(self, url_or_domain):
         """
         Autonomously selects the exact browser, port, and identity for any domain.
+        Defaults to Brave as Primary Engine with Chrome as Secondary Fallback.
         """
         target = url_or_domain.lower()
         for role, data in self.identities.items():
@@ -90,15 +86,18 @@ class DecisionEngine:
                         "browser": data["browser"],
                         "cdp_port": data["cdp_port"],
                         "email": data.get("email", ""),
-                        "reason": f"Domain {dom} matches established user workflow for {role}"
+                        "fallback_browser": "Chrome" if data["browser"] != "Chrome" else "Edge",
+                        "fallback_port": 9223 if data["browser"] != "Chrome" else 9225,
+                        "reason": f"Domain {dom} matched {role} profile ({data['browser']})"
                     }
-        # Default fallback
+        # Default Primary = Brave
         return {
-            "role": "primary_dev",
-            "browser": "Chrome",
+            "role": "primary_brave",
+            "browser": "Brave",
             "cdp_port": 9222,
-            "email": "atpadkarpratik00925@gmail.com",
-            "reason": "Default to primary developer Chrome environment"
+            "fallback_browser": "Chrome",
+            "fallback_port": 9223,
+            "reason": "Default Primary Agent Browser is Brave; Chrome is Secondary Fallback"
         }
 
     def resolve_git_identity(self, project_dir=None):
@@ -145,3 +144,4 @@ if __name__ == "__main__":
     for d in ["acadflow.dpdns.org", "github.com", "onedrive.live.com", "crunchyroll.com"]:
         r = engine.resolve_browser_route(d)
         print(f"Domain: {d:25} -> Browser: {r['browser']} (Port {r['cdp_port']}) | Account: {r.get('email')}")
+
