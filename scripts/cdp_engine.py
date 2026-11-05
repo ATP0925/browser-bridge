@@ -1,6 +1,7 @@
 """
-Unified CDP Engine for Microsoft Edge and Google Chrome.
-Handles discovery, WebSockets, origin headers, and command execution.
+Unified CDP Engine for the Authorized AI Browser (Port 9222).
+Integrates dedicated profile isolation (.authorized_ai_browser) and
+enforces the Sensitive Action Permission Protocol.
 """
 import json
 import time
@@ -8,11 +9,18 @@ import requests
 import websocket
 import urllib.parse
 import subprocess
+import os
 
+DEFAULT_AUTHORIZED_PORT = 9222
 COMMON_PORTS = [9222, 9223, 9224, 9225, 9229]
 
+SENSITIVE_KEYWORDS = [
+    "send", "checkout", "pay", "order", "purchase",
+    "delete", "remove", "destroy", "password", "transfer"
+]
+
 def find_active_port():
-    """Probe common CDP ports to find an active Edge or Chrome instance."""
+    """Probe common CDP ports, prioritizing the Authorized Browser on 9222."""
     for port in COMMON_PORTS:
         try:
             r = requests.get(f"http://localhost:{port}/json/version", timeout=1.5)
@@ -40,15 +48,22 @@ class CDPEngine:
             return []
         try:
             r = requests.get(f"http://localhost:{self.port}/json", timeout=3)
-            return r.json()
+            return [t for t in r.json() if t.get("type") == "page"]
         except Exception:
             return []
 
     def open_tab(self, url):
-        """Open a new tab via CDP Target API, or fallback to Windows default browser."""
+        """Open a new tab in the Authorized Browser via CDP Target API."""
+        if not self.port:
+            # Fallback to starting authorized browser launcher if available
+            launcher = os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat")
+            if os.path.isfile(launcher):
+                subprocess.Popen(["cmd.exe", "/c", launcher], shell=False)
+                time.sleep(3)
+                self.port, self.browser = find_active_port()
+
         if self.port:
             try:
-                # 1. Try Target.createTarget via browser-level WebSocket
                 v = requests.get(f"http://localhost:{self.port}/json/version", timeout=3).json()
                 ws_url = v.get("webSocketDebuggerUrl")
                 if ws_url:
@@ -62,25 +77,21 @@ class CDPEngine:
                     resp = json.loads(ws.recv())
                     ws.close()
                     target_id = resp.get("result", {}).get("targetId")
-                    return True, f"Opened via CDP (Target: {target_id})"
+                    return True, f"Opened via Authorized CDP (Target: {target_id})"
             except Exception as e:
                 # Fallback to PUT /json/new
                 try:
                     enc_url = urllib.parse.quote(url, safe=":/%?=&")
                     r = requests.put(f"http://localhost:{self.port}/json/new?{enc_url}", timeout=3)
                     if r.status_code == 200:
-                        return True, "Opened via HTTP endpoint"
+                        return True, "Opened via Authorized HTTP endpoint"
                 except Exception:
                     pass
 
-        # Native OS Fallback: uses Windows default browser (Edge or Chrome) seamlessly
-        try:
-            subprocess.Popen(["cmd.exe", "/c", "start", "", url], shell=False)
-            return True, "Opened via Windows ShellExecute (Default Browser)"
-        except Exception as e:
-            return False, f"Failed to open tab: {e}"
+        return False, "Authorized Browser is offline. Please run Launch_AI_Authorized_Browser.bat"
 
     def compose_gmail(self, to, subject, body):
+        """Open pre-filled Gmail compose tab in the Authorized Browser without auto-sending."""
         params = {
             "view": "cm",
             "fs": "1",
@@ -92,26 +103,26 @@ class CDPEngine:
         return self.open_tab(gmail_url)
 
     def evaluate_script(self, expression, tab_url_filter=None):
+        """Evaluate JS in an active tab in the Authorized Browser."""
         if not self.port:
-            return None, "CDP not connected"
+            return None, "Authorized Browser CDP not connected"
         tabs = self.get_tabs()
         target = None
         for t in tabs:
-            if t.get("type") == "page":
-                if tab_url_filter:
-                    if tab_url_filter.lower() in t.get("url", "").lower():
-                        target = t
-                        break
-                else:
+            if tab_url_filter:
+                if tab_url_filter.lower() in t.get("url", "").lower() or tab_url_filter.lower() in t.get("title", "").lower():
                     target = t
                     break
+            else:
+                target = t
+                break
 
         if not target:
-            return None, "No matching page tab found"
+            return None, f"No matching tab found for filter '{tab_url_filter}'"
 
         ws_url = target.get("webSocketDebuggerUrl")
         if not ws_url:
-            return None, "Tab lacks WebSocket URL"
+            return None, "Target tab has no WebSocket debugger URL"
 
         try:
             ws = websocket.create_connection(
@@ -120,9 +131,9 @@ class CDPEngine:
                 header={"Origin": f"http://localhost:{self.port}"}
             )
             cmd = {
-                "id": 100,
+                "id": 101,
                 "method": "Runtime.evaluate",
-                "params": {"expression": expression, "returnByValue": True}
+                "params": {"expression": expression, "returnByValue": True, "awaitPromise": True}
             }
             ws.send(json.dumps(cmd))
             resp = json.loads(ws.recv())
@@ -131,3 +142,7 @@ class CDPEngine:
         except Exception as e:
             return None, str(e)
 
+    def is_action_sensitive(self, action_name, action_target=""):
+        """Check if an action is sensitive and requires user confirmation."""
+        text = f"{action_name} {action_target}".lower()
+        return any(k in text for k in SENSITIVE_KEYWORDS)

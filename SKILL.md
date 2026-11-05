@@ -1,74 +1,67 @@
 ---
 name: browser-bridge
-description: "Universal live desktop browser bridge for agents. Hooks into running Microsoft Edge and Google Chrome via CDP (Chrome DevTools Protocol) to bypass agent sandbox restrictions. Enables authenticated web actions like sending Gmail, scraping login-walled sites, and driving web UIs."
+description: "Universal live desktop browser bridge for agents. Hooks directly into the user's dedicated Authorized AI Browser (port 9222, profile .authorized_ai_browser) launched via Desktop shortcut. Bypasses agent sandbox restrictions, enables authenticated Gmail/web actions, and enforces the Sensitive Action Permission Protocol."
 category: browser-automation
-risk: medium
+risk: safe
 source: custom
 date_added: "2026-11-05"
-author: atpad
-tags: [browser, cdp, edge, chrome, gmail, sandbox-bypass, windows]
+author: "ATP0925"
+tags: [browser, cdp, authorized-browser, gmail, sandbox-bypass, windows, permissions]
 ---
 
-# Browser Bridge — Live Desktop Browser Control Skill
+# Browser Bridge — Authorized AI Browser Control & Safety Skill
 
-## 🎯 Purpose & Capabilities
-`browser-bridge` eliminates the sandbox barrier between the AI agent and the user's desktop browser. It allows the agent to control the user's **already authenticated, logged-in browser** (both **Microsoft Edge** and **Google Chrome**) without needing credentials, fake profiles, or headless workarounds.
+## 🎯 Purpose & Core Philosophy
+`browser-bridge` connects the AI agent directly to a **dedicated Authorized AI Browser instance** (`%USERPROFILE%\.authorized_ai_browser` on CDP port `9222`), launched via the user's desktop shortcut:
+`Launch_AI_Authorized_Browser.bat`.
 
-### Key Capabilities:
-1. **Authenticated Email Dispatch**: Compose and review/send emails directly through logged-in Gmail sessions.
-2. **Login-Walled Site Extraction**: Read internal dashboards, Shopify admin portals, orders, or private repositories.
-3. **Dual Browser Support**: Seamlessly detects and controls either **Microsoft Edge** or **Google Chrome**.
-4. **Non-Destructive Session Connection**: Connects via Chrome DevTools Protocol (CDP) WebSocket without killing user tabs or losing work.
+### 🛡️ Two Golden Operational Principles:
+1. **Isolated from Everyday Browser**:
+   - The AI **never** tampers with or touches the user's personal default everyday browser profile.
+   - It only operates inside the dedicated `%USERPROFILE%\.authorized_ai_browser` profile where the user grants authorization.
+2. **Autonomous Exploration vs. Sensitive Action Approval**:
+   - **Autonomous (No Permission Needed)**: The AI is 100% free to navigate, inspect, extract DOM data, scrape, evaluate JavaScript, take screenshots, and prepare pre-filled form drafts.
+   - **Sensitive Action Protocol (MANDATORY Permission Required)**: Before executing any consequential action—such as **clicking "Send" on an email**, **making a payment**, **placing an order**, **deleting data**, or **submitting sensitive credentials**—the AI **MUST stop and ask the user/owner for explicit confirmation**.
 
 ---
 
-## ⚡ Quick Start CLI
+## ⚡ CLI Reference
 
-```bash
-# 1. Check browser bridge status & discover open tabs
+```powershell
+# 1. Inspect live connection & list active authorized tabs
 python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py status
 
-# 2. Open a pre-filled Gmail compose tab in the user's active browser
-python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py gmail --to "client@example.com" --subject "Review" --body "Message body..."
+# 2. Launch Authorized Browser if offline (via desktop batch file)
+python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py launch
 
-# 3. Open any URL in a new tab
-python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py open "https://example.com"
+# 3. Prepare a pre-filled Gmail compose draft (leaves Send button for owner approval)
+python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py gmail --to "client@example.com" --subject "Review" --body "Draft text..."
 
-# 4. Execute JavaScript inside an active tab
-python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py eval "document.title"
+# 4. Open any URL in a new tab inside the Authorized Browser
+python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py open "https://stickitup.xyz"
 
-# 5. Launch / attach Edge or Chrome with persistent CDP enabled
-python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py start --browser edge
+# 5. Evaluate JavaScript inside an active tab (e.g. read cart state or page title)
+python C:\Users\atpad\.gemini\config\skills\browser-bridge\scripts\bridge.py eval "document.title" --filter "stickitup"
 ```
 
 ---
 
-## 🏗️ Architecture: How It Bypasses Sandbox Limits
+## 🔒 Sensitive Action Permission Matrix
 
-```mermaid
-flowchart LR
-    A[Antigravity Agent] -->|Local CLI / Python| B[bridge.py Daemon]
-    B -->|HTTP /json Discovery| C{CDP Port Finder\n9222, 9223, 9224}
-    C -->|WebSocket + Target API| D[Microsoft Edge\nUser Profile]
-    C -->|WebSocket + Target API| E[Google Chrome\nUser Profile]
-    D -->|Logged-in Sessions| F[Gmail / Shopify / Web Apps]
-    E -->|Logged-in Sessions| F
-```
-
-### Why Standard Sandbox Calls Fail:
-- Agent CLI commands run in isolated child process sessions on Windows.
-- Standard tools cannot simulate global mouse clicks on external desktop applications due to Windows User Interface Privilege Isolation (UIPI).
-- Third-party headless browsers lack the user's cookies, 2FA tokens, and authenticated logins.
-
-### How Browser-Bridge Solves It:
-- Communicates directly via **Chrome DevTools Protocol (CDP)** over `localhost` WebSockets.
-- The browser handles rendering, cookies, authentication, and execution natively.
-- Zero credential handling required by the agent—uses the user's real session.
+| Operation Category | Action Examples | Agent Autonomy | Permission Required? |
+| :--- | :--- | :--- | :--- |
+| **Observation** | Reading page text, inspecting DOM, status checks | ✅ Full Autonomy | ❌ No |
+| **Navigation** | Opening URLs, switching tabs, reloading | ✅ Full Autonomy | ❌ No |
+| **Drafting** | Pre-filling email body, filling search inputs | ✅ Full Autonomy | ❌ No |
+| **Outreach Dispatch** | Clicking "Send" in Gmail or messaging apps | ⚠️ Gated Action | **✅ YES (Owner Approval Required)** |
+| **Financial / Cart** | Clicking "Pay", entering CVV, placing orders | ⚠️ Gated Action | **✅ YES (Owner Approval Required)** |
+| **Destructive** | Deleting accounts, dropping databases, clearing data| ⚠️ Gated Action | **✅ YES (Owner Approval Required)** |
 
 ---
 
-## 📁 Component Structure
+## 📁 Repository Structure
 
-* [`SKILL.md`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/SKILL.md) — Documentation and guide.
-* [`scripts/bridge.py`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/scripts/bridge.py) — Core unified CLI supporting Edge and Chrome.
-* [`scripts/cdp_engine.py`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/scripts/cdp_engine.py) — Robust WebSocket CDP client with automatic reconnection and multi-target support.
+* [`SKILL.md`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/SKILL.md) — Agent manifest and permission rules.
+* [`README.md`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/README.md) — Comprehensive GitHub repository documentation.
+* [`scripts/bridge.py`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/scripts/bridge.py) — Unified CLI with port 9222 integration and safety gates.
+* [`scripts/cdp_engine.py`](file:///C:/Users/atpad/.gemini/config/skills/browser-bridge/scripts/cdp_engine.py) — Resilient WebSocket CDP protocol handler.

@@ -24,3 +24,4 @@ browser-bridge = "scripts.bridge:main"
 [project.urls]
 Homepage = "https://github.com/ATP0925/browser-bridge"
 Repository = "https://github.com/ATP0925/browser-bridge"
+

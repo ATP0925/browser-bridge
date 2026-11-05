@@ -3,117 +3,117 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6.svg)](https://microsoft.com/windows)
-[![Supported Browsers: Edge & Chrome](https://img.shields.io/badge/Browsers-Edge%20%7C%20Chrome-green.svg)](https://github.com/ATP0925/browser-bridge)
-[![Antigravity Skill](https://img.shields.io/badge/Agent%20Skill-Antigravity%20%7C%20Claude%20%7C%20Codex-purple.svg)](https://github.com/ATP0925/browser-bridge)
+[![Architecture: Dedicated Profile](https://img.shields.io/badge/Profile-.authorized__ai__browser-orange.svg)](https://github.com/ATP0925/browser-bridge)
+[![Safety: Owner Approval Protocol](https://img.shields.io/badge/Safety-Permission%20Gated-success.svg)](https://github.com/ATP0925/browser-bridge)
 
-> **Universal desktop browser bridge for AI coding agents.** Connects sandboxed agents to the user's running, authenticated **Microsoft Edge** and **Google Chrome** desktop browsers via the Chrome DevTools Protocol (CDP) and native OS fallbacks.
-
----
-
-## 💥 The Problem: Why Agents Get Trapped in Sandboxes
-
-When an AI agent (in Antigravity, Claude Code, Codex, or Cursor) tries to interact with the internet or perform user-directed actions, it frequently hits the **Sandbox Boundary**:
-
-1. **Headless Browsers Lack Logins**: Standard Playwright/Puppeteer instances start with fresh, blank profiles. They cannot access the user's logged-in Gmail, GitHub, Shopify, or internal enterprise dashboards without complex session exports or 2FA hurdles.
-2. **OS Process Isolation (UIPI)**: Background agent subprocesses are prohibited by Windows User Interface Privilege Isolation from simulating keystrokes (`pyautogui`, `SendKeys`) on elevated desktop applications.
-3. **Session Interruption**: Aggressive automation scripts often terminate (`taskkill`) running browsers to restart them with debug flags, destroying user tabs and causing workflow disruption.
+> **Dedicated desktop browser bridge for AI coding agents.** Connects sandboxed AI assistants directly to an **Authorized AI Browser** (`%USERPROFILE%\.authorized_ai_browser` on CDP port `9222`) while keeping your personal everyday browser completely isolated and enforcing a strict **Sensitive Action Permission Protocol**.
 
 ---
 
-## ⚡ The Solution: Browser Bridge Architecture
+## 🛡️ Core Architecture & Operational Rules
 
-`browser-bridge` connects your AI agent directly to your **existing, live browser** without requiring credential storage or destructive restarts.
+Unlike fragile headless browsers or unsafe tools that tamper with your personal browser sessions, `browser-bridge` operates on two foundational principles:
+
+1. **Dedicated AI-Authorized Profile (`.authorized_ai_browser`)**:
+   - The AI interacts exclusively with a dedicated browser instance launched via your desktop shortcut (`Launch_AI_Authorized_Browser.bat`).
+   - Your primary personal browser, everyday tabs, and personal profiles are **never** touched or modified.
+2. **Autonomous Exploration + Sensitive Action Approval Protocol**:
+   - **Autonomous (No Permission Needed)**: The AI is free to browse, navigate, extract DOM data, scrape, analyze pages, and pre-fill drafts.
+   - **Gated Sensitive Actions (Mandatory Approval)**: Before executing any consequential action—such as **sending an email**, **making a payment**, **placing an order**, or **deleting data**—the agent **MUST ask for the owner's explicit confirmation**.
+
+---
+
+## ⚡ The Architecture
 
 ```mermaid
-flowchart LR
-    A[AI Agent / Antigravity] -->|Local CLI / Python| B[bridge.py]
-    B --> C{CDP Port Discovery\n9222, 9223, 9224...}
-    C -->|CDP Active| D[WebSocket Connection\nTarget.createTarget / Runtime.eval]
-    C -->|CDP Inactive| E[Windows ShellExecute Fallback\ncmd /c start <url>]
-    D --> F[Active Browser\nEdge or Chrome]
-    E --> F
-    F --> G[Authenticated Sessions\nGmail • Shopify • GitHub • Portals]
+flowchart TD
+    Agent[AI Agent / Antigravity] -->|Invokes| Bridge[bridge.py]
+    Bridge --> Check{Active Port 9222?}
+    Check -->|Offline| Launcher[Runs Launch_AI_Authorized_Browser.bat]
+    Check -->|Online| Engine[CDP WebSocket Connection]
+    Launcher --> Engine
+    Engine --> AuthBrowser[Authorized AI Browser\nProfile: .authorized_ai_browser\nPort: 9222]
+    AuthBrowser --> FreeActions[Free: Scrape • Navigate • Pre-fill Drafts]
+    AuthBrowser --> SensitiveActions{Sensitive Action?\nSend Email • Pay • Delete}
+    SensitiveActions -->|Yes| Prompt[Stop & Ask User for Approval]
+    SensitiveActions -->|No| Exec[Execute Instantly]
 ```
 
 ---
 
-## ✨ Features
+## 🔒 Sensitive Action Permission Matrix
 
-- **Dual Browser Engine**: Automatically detects and controls both **Microsoft Edge** and **Google Chrome**.
-- **Zero-Credential Security**: Never asks for or stores passwords or cookies. Drives actions through the user's already-authenticated browser session.
-- **1-Click Gmail Automation**: Instantly dispatches or drafts pre-filled emails with recipient, subject, and body pre-loaded into the user's live Gmail account.
-- **Graceful Fallbacks**: If CDP remote debugging is not attached, it seamlessly falls back to Windows native ShellExecute to open requested tasks in the user's default browser.
-- **Non-Destructive**: Never kills user tabs or forces profile wipes.
+| Operation Category | Action Examples | Agent Autonomy | Owner Approval Required? |
+| :--- | :--- | :--- | :--- |
+| **Observation** | Reading page text, inspecting DOM, status checks | ✅ Full Autonomy | ❌ No |
+| **Navigation** | Opening URLs, switching tabs, reloading | ✅ Full Autonomy | ❌ No |
+| **Drafting** | Pre-filling email body, filling search inputs | ✅ Full Autonomy | ❌ No |
+| **Outreach Dispatch** | Clicking "Send" in Gmail or messaging apps | ⚠️ Gated Action | **✅ YES (Owner Approval Required)** |
+| **Financial / Cart** | Clicking "Pay", entering CVV, placing orders | ⚠️ Gated Action | **✅ YES (Owner Approval Required)** |
+| **Destructive** | Deleting accounts, dropping databases, clearing data| ⚠️ Gated Action | **✅ YES (Owner Approval Required)** |
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Installation
-
-```bash
-git clone https://github.com/ATP0925/browser-bridge.git
-cd browser-bridge
-pip install -r requirements.txt
+### 1. Launching the Authorized Browser
+Double-click your desktop shortcut:
+```text
+C:\Users\atpad\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat
 ```
-
-*(Optional) Install in editable mode for global CLI access:*
-```bash
-pip install -e .
-```
+*(Or let `bridge.py` auto-launch it on demand).*
 
 ### 2. CLI Usage
 
-#### Check Browser Connection Status
-```bash
+#### Check Connection & List Active Tabs
+```powershell
 python scripts/bridge.py status
 ```
 *Output:*
 ```text
-============================================================
- 🌐 BROWSER BRIDGE — LIVE STATUS
-============================================================
-✅ CDP Status   : CONNECTED
-📍 Debug Port   : 9222
-🚀 Browser      : Chrome/156.0.8078.80
-📑 Open Tabs    : 8
-   [1] Inbox (531) - Gmail -> https://mail.google.com/mail/u/0/
-   [2] Stick It Up Store -> https://www.stickitup.xyz/
+=================================================================
+ 🛡️  AUTHORIZED AI BROWSER BRIDGE — LIVE STATUS
+=================================================================
+✅ Connection Status : ACTIVE & CONNECTED
+📍 Authorized Port   : 9222
+🚀 Browser Engine    : Chrome/156.0.8078.80
+📁 Isolated Profile  : %USERPROFILE%\.authorized_ai_browser
+🔒 Safety Protocol   : ENFORCED (Sensitive actions require owner approval)
+
+📑 Active Authorized Tabs (9):
+   [1] AWS Builder Center          | https://builder.aws.com/
+   [2] Inbox - Gmail               | https://mail.google.com/mail/u/0/
+   [3] Stick It Up Store           | https://www.stickitup.xyz/
 ```
 
-#### Dispatch Pre-filled Gmail Compose Window
-```bash
+#### Pre-fill an Email in Authorized Gmail
+```powershell
 python scripts/bridge.py gmail \
   --to "client@example.com" \
   --subject "Project Audit Findings" \
   --body "Hi, here are the review details..."
 ```
+*The compose window opens pre-filled in your Authorized Browser. The agent halts and awaits your permission before sending.*
 
-#### Open Any URL in Active Browser
-```bash
+#### Open Any URL or Inspect Elements
+```powershell
+# Open URL
 python scripts/bridge.py open "https://github.com/ATP0925"
-```
 
-#### Execute JavaScript in Active Tab
-```bash
-python scripts/bridge.py eval "document.title"
+# Evaluate JavaScript inside tab
+python scripts/bridge.py eval "document.title" --filter "stickitup"
 ```
 
 ---
 
 ## 🤖 Agent Skill Integration
 
-To add `browser-bridge` to your AI coding assistant (Antigravity, Claude Code, Cursor, Codex):
+Add `browser-bridge` to your AI coding assistant (Antigravity, Claude Code, Cursor, Codex):
 
-1. Copy the repository into your agent's skills directory:
-   ```bash
-   # For Antigravity / Gemini CLI:
-   cp -r browser-bridge ~/.gemini/config/skills/browser-bridge
-
-   # For Claude Code:
-   cp -r browser-bridge ~/.claude/skills/browser-bridge
-   ```
-2. The agent reads `SKILL.md` and gains instant access to drive live browser tabs and bypass sandbox limitations whenever you ask it to open, compose, review, or scrape authenticated web pages.
+```bash
+# Clone or copy into your agent skills directory
+cp -r browser-bridge ~/.gemini/config/skills/browser-bridge
+```
 
 ---
 
@@ -121,16 +121,16 @@ To add `browser-bridge` to your AI coding assistant (Antigravity, Claude Code, C
 
 ```text
 browser-bridge/
-├── SKILL.md              # Agent skill manifest & trigger definitions
+├── SKILL.md              # Agent skill manifest & permission rules
 ├── README.md             # Complete open source documentation
 ├── LICENSE               # MIT License
 ├── requirements.txt      # Python dependencies
 ├── pyproject.toml        # Package & CLI metadata
 └── scripts/
-    ├── bridge.py         # Main unified CLI (Edge & Chrome)
-    ├── cdp_engine.py     # Resilient CDP WebSocket client & port scanner
-    ├── cdp_client.py     # Low-level Chrome DevTools protocol client
-    └── os_automation.py  # Native Windows UI automation fallbacks
+    ├── bridge.py         # Unified CLI (Edge & Chrome via Port 9222)
+    ├── cdp_engine.py     # Resilient CDP WebSocket protocol client
+    ├── cdp_client.py     # Low-level DevTools protocol client
+    └── os_automation.py  # Native UI automation fallback helpers
 ```
 
 ---
