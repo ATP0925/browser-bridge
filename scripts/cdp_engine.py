@@ -1,7 +1,8 @@
 """
 Unified CDP Engine for the Authorized AI Browser (Port 9222).
-Integrates dedicated profile isolation (.authorized_ai_browser) and
-enforces the Sensitive Action Permission Protocol.
+Integrates dedicated profile isolation (.authorized_ai_browser),
+Semantic ARIA accessibility querying, Hardware Input dispatching,
+and enforces the Sensitive Action Permission Protocol with Intent Inheritance.
 """
 import json
 import time
@@ -55,7 +56,6 @@ class CDPEngine:
     def open_tab(self, url):
         """Open a new tab in the Authorized Browser via CDP Target API."""
         if not self.port:
-            # Fallback to starting authorized browser launcher if available
             launcher = os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat")
             if os.path.isfile(launcher):
                 subprocess.Popen(["cmd.exe", "/c", launcher], shell=False)
@@ -70,7 +70,7 @@ class CDPEngine:
                     ws = websocket.create_connection(
                         ws_url,
                         timeout=5,
-                        header={"Origin": f"http://localhost:{self.port}"}
+                        suppress_origin=True
                     )
                     cmd = {"id": 1, "method": "Target.createTarget", "params": {"url": url}}
                     ws.send(json.dumps(cmd))
@@ -78,8 +78,7 @@ class CDPEngine:
                     ws.close()
                     target_id = resp.get("result", {}).get("targetId")
                     return True, f"Opened via Authorized CDP (Target: {target_id})"
-            except Exception as e:
-                # Fallback to PUT /json/new
+            except Exception:
                 try:
                     enc_url = urllib.parse.quote(url, safe=":/%?=&")
                     r = requests.put(f"http://localhost:{self.port}/json/new?{enc_url}", timeout=3)
@@ -90,22 +89,8 @@ class CDPEngine:
 
         return False, "Authorized Browser is offline. Please run Launch_AI_Authorized_Browser.bat"
 
-    def compose_gmail(self, to, subject, body):
-        """Open pre-filled Gmail compose tab in the Authorized Browser without auto-sending."""
-        params = {
-            "view": "cm",
-            "fs": "1",
-            "to": to,
-            "su": subject,
-            "body": body
-        }
-        gmail_url = "https://mail.google.com/mail/?" + urllib.parse.urlencode(params)
-        return self.open_tab(gmail_url)
-
-    def evaluate_script(self, expression, tab_url_filter=None):
-        """Evaluate JS in an active tab in the Authorized Browser."""
-        if not self.port:
-            return None, "Authorized Browser CDP not connected"
+    def _get_target_ws(self, tab_url_filter=None):
+        """Helper to get WebSocket connection and tab object for a filtered tab."""
         tabs = self.get_tabs()
         target = None
         for t in tabs:
@@ -117,30 +102,206 @@ class CDPEngine:
                 target = t
                 break
 
-        if not target:
+        if not target or not target.get("webSocketDebuggerUrl"):
+            return None, None
+
+        ws = websocket.create_connection(
+            target["webSocketDebuggerUrl"],
+            timeout=8,
+            suppress_origin=True
+        )
+        return ws, target
+
+    def _cdp_call(self, ws, method, params=None):
+        """Send a CDP command and wait strictly for the matching ID response."""
+        cmd_id = int(time.time() * 1000) % 10000000
+        msg = {"id": cmd_id, "method": method, "params": params or {}}
+        ws.send(json.dumps(msg))
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            res = json.loads(ws.recv())
+            if res.get("id") == cmd_id:
+                return res
+        raise TimeoutError(f"CDP command {method} timed out waiting for ID {cmd_id}")
+
+    def evaluate_script(self, expression, tab_url_filter=None):
+        """Evaluate JS in an active tab with robust response ID matching."""
+        if not self.port:
+            return None, "Authorized Browser CDP not connected"
+        ws, target = self._get_target_ws(tab_url_filter)
+        if not ws:
             return None, f"No matching tab found for filter '{tab_url_filter}'"
 
-        ws_url = target.get("webSocketDebuggerUrl")
-        if not ws_url:
-            return None, "Target tab has no WebSocket debugger URL"
+        try:
+            res = self._cdp_call(ws, "Runtime.evaluate", {
+                "expression": expression,
+                "returnByValue": True,
+                "awaitPromise": True
+            })
+            ws.close()
+            return res.get("result", {}).get("result", {}).get("value"), None
+        except Exception as e:
+            if ws:
+                ws.close()
+            return None, str(e)
+
+    def bring_to_front(self, tab_url_filter=None):
+        """Bring the specified tab into active view."""
+        ws, target = self._get_target_ws(tab_url_filter)
+        if not ws:
+            return False
+        try:
+            self._cdp_call(ws, "Page.bringToFront")
+            ws.close()
+            return True
+        except Exception:
+            if ws:
+                ws.close()
+            return False
+
+    def send_hardware_key(self, key, code="KeyF", windows_virtual_key_code=70, tab_url_filter=None):
+        """
+        Dispatch a genuine hardware keyboard event at the browser engine level.
+        Guarantees event.isTrusted === true.
+        """
+        ws, target = self._get_target_ws(tab_url_filter)
+        if not ws:
+            return False, "Target tab not found"
 
         try:
-            ws = websocket.create_connection(
-                ws_url,
-                timeout=5,
-                header={"Origin": f"http://localhost:{self.port}"}
-            )
-            cmd = {
-                "id": 101,
-                "method": "Runtime.evaluate",
-                "params": {"expression": expression, "returnByValue": True, "awaitPromise": True}
-            }
-            ws.send(json.dumps(cmd))
-            resp = json.loads(ws.recv())
+            self._cdp_call(ws, "Input.dispatchKeyEvent", {
+                "type": "keyDown",
+                "key": key,
+                "code": code,
+                "windowsVirtualKeyCode": windows_virtual_key_code
+            })
+            self._cdp_call(ws, "Input.dispatchKeyEvent", {
+                "type": "keyUp",
+                "key": key,
+                "code": code,
+                "windowsVirtualKeyCode": windows_virtual_key_code
+            })
             ws.close()
-            return resp.get("result", {}).get("result", {}).get("value"), None
+            return True, f"Dispatched key '{key}' ({code})"
         except Exception as e:
-            return None, str(e)
+            if ws:
+                ws.close()
+            return False, str(e)
+
+    def click_semantic(self, name_or_label, role=None, tab_url_filter=None):
+        """
+        Click an element based on semantic accessibility properties (ARIA, text)
+        instead of fragile CSS class names.
+        """
+        js = f"""
+        (() => {{
+            const query = {json.dumps(name_or_label.lower())};
+            const role = {json.dumps((role or '').lower())};
+            
+            // Search order:
+            // 1. role + aria-label
+            // 2. button/input matching aria-label
+            // 3. visible text content
+            const allElements = Array.from(document.querySelectorAll('button, a, input[type="submit"], input[type="button"], [role="button"], div, span'));
+            let matched = null;
+
+            for (const el of allElements) {{
+                const elRole = (el.getAttribute('role') || el.tagName).toLowerCase();
+                const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+                const text = (el.innerText || el.value || '').trim().toLowerCase();
+
+                if (role && elRole !== role) continue;
+
+                if (aria.includes(query) || text === query || (text.includes(query) && text.length < 50)) {{
+                    matched = el;
+                    break;
+                }}
+            }}
+
+            if (matched) {{
+                matched.focus();
+                matched.dispatchEvent(new MouseEvent('mousedown', {{bubbles: true, cancelable: true, view: window}}));
+                matched.dispatchEvent(new MouseEvent('mouseup', {{bubbles: true, cancelable: true, view: window}}));
+                matched.click();
+                return {{ success: true, tag: matched.tagName, aria: matched.getAttribute('aria-label') || matched.innerText }};
+            }}
+            return {{ success: false, error: 'Element not found by semantic search' }};
+        }})()
+        """
+        res, err = self.evaluate_script(js, tab_url_filter)
+        return res or {"success": False, "error": err}
+
+    def fill_semantic(self, label_pattern, value, tab_url_filter=None, press_enter=True):
+        """
+        Fill an input element found by semantic label, placeholder, or name.
+        """
+        js = f"""
+        (() => {{
+            const query = {json.dumps(label_pattern.lower())};
+            const val = {json.dumps(value)};
+            const doEnter = {json.dumps(press_enter)};
+
+            const inputs = Array.from(document.querySelectorAll('input, textarea, div[role="textbox"]'));
+            let target = null;
+
+            for (const i of inputs) {{
+                const aria = (i.getAttribute('aria-label') || '').toLowerCase();
+                const name = (i.getAttribute('name') || '').toLowerCase();
+                const placeholder = (i.getAttribute('placeholder') || '').toLowerCase();
+                const id = (i.id || '').toLowerCase();
+
+                if (aria.includes(query) || name.includes(query) || placeholder.includes(query) || id.includes(query)) {{
+                    target = i;
+                    break;
+                }}
+            }}
+
+            if (target) {{
+                target.focus();
+                if (target.tagName === 'DIV') {{
+                    target.innerHTML = val;
+                }} else {{
+                    target.value = val;
+                }}
+                target.dispatchEvent(new Event('input', {{bubbles: true}}));
+                target.dispatchEvent(new Event('change', {{bubbles: true}}));
+
+                if (doEnter) {{
+                    target.dispatchEvent(new KeyboardEvent('keydown', {{bubbles: true, keyCode: 13, which: 13, key: 'Enter'}}));
+                }}
+                return {{ success: true, tag: target.tagName, filled: val }};
+            }}
+            return {{ success: false, error: 'Input not found by semantic search' }};
+        }})()
+        """
+        res, err = self.evaluate_script(js, tab_url_filter)
+        return res or {"success": False, "error": err}
+
+    def detect_captcha(self, tab_url_filter=None):
+        """Scan the page for anti-bot challenges (Turnstile, reCAPTCHA, hCaptcha)."""
+        js = """
+        (() => {
+            const iframes = Array.from(document.querySelectorAll('iframe')).map(f => f.src.toLowerCase());
+            const hasTurnstile = iframes.some(s => s.includes('turnstile') || s.includes('challenges.cloudflare.com'));
+            const hasRecaptcha = iframes.some(s => s.includes('recaptcha') || s.includes('google.com/recaptcha'));
+            const hasHcaptcha = iframes.some(s => s.includes('hcaptcha'));
+            const hasArkose = iframes.some(s => s.includes('arkoselabs') || s.includes('funcaptcha'));
+
+            const foundType = hasTurnstile ? 'Cloudflare Turnstile'
+                            : hasRecaptcha ? 'Google reCAPTCHA'
+                            : hasHcaptcha ? 'hCaptcha'
+                            : hasArkose ? 'Arkose Labs FunCaptcha'
+                            : null;
+
+            return {
+                detected: !!foundType,
+                type: foundType,
+                iframeCount: iframes.length
+            };
+        })()
+        """
+        res, err = self.evaluate_script(js, tab_url_filter)
+        return res or {"detected": False, "error": err}
 
     def is_action_sensitive(self, action_name, action_target=""):
         """Check if an action is sensitive and requires user confirmation."""

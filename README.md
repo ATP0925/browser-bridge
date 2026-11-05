@@ -1,104 +1,83 @@
-# 🌐 Browser Bridge
+# 🌉 Browser Bridge — Authorized AI Browser Operator & Automation Skill
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6.svg)](https://microsoft.com/windows)
-[![Architecture: Dedicated Profile](https://img.shields.io/badge/Profile-.authorized__ai__browser-orange.svg)](https://github.com/ATP0925/browser-bridge)
-[![Safety: Context Permission Inheritance](https://img.shields.io/badge/Safety-Pre--Approved%20Intent%20Protocol-success.svg)](https://github.com/ATP0925/browser-bridge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Windows / Linux / macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-brightgreen.svg)]()
+[![Protocol: CDP + ARIA](https://img.shields.io/badge/Engine-CDP%20%2B%20ARIA%20%2B%20TOTP-purple.svg)]()
 
-> **Dedicated desktop browser bridge for AI coding agents.** Connects sandboxed AI assistants directly to an **Authorized AI Browser** (`%USERPROFILE%\.authorized_ai_browser` on CDP port `9222`) while keeping your personal everyday browser completely isolated and enforcing a smart **Context-Aware Permission Inheritance Protocol**.
+> Direct desktop browser integration for autonomous AI coding agents (Antigravity / Claude Code / Codex). Bridges sandbox isolation, connects to an isolated browser profile on CDP port `9222`, and implements the **Context-Aware Intent Inheritance (गृहीत कार्यप्रणाली)** protocol.
 
 ---
 
-## 🛡️ Core Operational Architecture
+## 🌟 Key Features
 
-`browser-bridge` operates on three foundational principles:
+1. **Dedicated Profile Isolation (`%USERPROFILE%\.authorized_ai_browser`):**
+   - Operates exclusively on port `9222` launched by your desktop batch file (`Launch_AI_Authorized_Browser.bat`).
+   - Your primary everyday personal browser is **never touched, closed, or modified**.
 
-1. **Dedicated AI-Authorized Profile (`.authorized_ai_browser`)**:
-   - The AI interacts exclusively with a dedicated browser instance launched via your desktop shortcut (`Launch_AI_Authorized_Browser.bat`).
-   - Your primary personal browser, everyday tabs, and personal profiles are **never** touched.
-2. **Context-Aware Permission Inheritance (गृहीत / Pre-Approved Rule)**:
-   - **Explicit Upfront Intent = Full Automated Execution:** If the user has already requested or approved an action in the chat (e.g. *"client ko email compose karke bhej de"*, *"submit this test form"*), the AI treats that category of actions as **pre-authorized (gruhit dharla jaayel)**.
-   - The agent executes the entire pipeline end-to-end without stopping for redundant micro-confirmations.
-   - **When Does It Stop?** Only when an action is truly out-of-scope, destructive (unsolicited account/data deletion), or involves unexpected real financial charges not mentioned in the prompt.
-3. **Full Autonomous Exploration**:
-   - Web scraping, DOM inspection, research, and screenshot verification run 100% autonomously.
+2. **Semantic Accessibility (ARIA) Engine:**
+   - Clicks and fills inputs using accessible roles, names, and text rather than fragile, minified CSS selectors. Resilient across site redesigns.
 
----
+3. **Engine-Level Hardware Input Dispatch (`isTrusted === true`):**
+   - Dispatches genuine keyboard and mouse events via Chrome DevTools Protocol (`Input.dispatchKeyEvent`). Fullscreen toggles, media keys, and shortcuts execute cleanly without getting blocked by user-activation gates.
 
-## ⚡ Architecture Flow
+4. **Autonomous TOTP 2FA Token Generator:**
+   - Pure Python standard library implementation of RFC 6238. Generates 6-digit Authenticator codes on the fly without external dependencies.
 
-```mermaid
-flowchart TD
-    UserPrompt["User Prompt: 'Client ko email compose karke bhej de'"] --> ScopeCheck{Intent Explicitly Authorized\nin Chat Context?}
-    ScopeCheck -->|Yes: Pre-Approved / Gruhit| DirectExec[Full End-to-End Autonomous Execution\nFill -> Click Send -> Verify Delivery]
-    ScopeCheck -->|No: Unrequested Sensitive Action| UserConfirm[Stop & Request Owner Confirmation]
-    DirectExec --> AuthBrowser[Authorized AI Browser\nPort: 9222 | Profile: .authorized_ai_browser]
-    UserConfirm -->|Confirmed| AuthBrowser
-```
+5. **Anti-Bot Challenge Detection & 3-Second Audio Handoff:**
+   - Detects Cloudflare Turnstile, reCAPTCHA, and hCaptcha iframes. Brings the tab to the foreground and sounds a voice alert for zero-friction human verification before auto-resuming.
+
+6. **Context-Aware Permission Inheritance (Pre-Approved Intent Protocol):**
+   - If an action was explicitly requested by the user in chat (e.g. *"send the email"*, *"fill the checkout details"*), the entire execution pipeline runs autonomously without annoying pause prompts.
 
 ---
 
-## 🔒 Permission Matrix: Intent vs Prompt Scope
-
-| User Prompt Context | Target Action | Execution Mode |
-| :--- | :--- | :--- |
-| *"Client ko email bhej do"* | Gmail compose & Send | 🚀 **Automatic End-to-End (Pre-approved)** |
-| *"Draft banao / check karo"* | Gmail compose only | 📝 **Draft only, await review** |
-| *"Website audit karo"* | Navigation, scraping, eval | 🚀 **Full Autonomy** |
-| Unexpected Real Charge / Delete (not in prompt) | Financial / destructive | ⚠️ **Pause & Ask for Confirmation** |
-
----
-
-## 🚀 Quick Start
-
-### 1. Launching the Authorized Browser
-Double-click your desktop shortcut:
-```text
-C:\Users\atpad\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat
-```
-
-### 2. CLI Usage
+## 🚀 Quick Start CLI
 
 ```powershell
-# Check Connection & List Active Tabs
+# Check connection & list open tabs
 python scripts/bridge.py status
 
-# Dispatch Email
-python scripts/bridge.py gmail \
-  --to "client@example.com" \
-  --subject "Project Findings" \
-  --body "Review text..."
+# Generate 2FA TOTP code
+python scripts/bridge.py totp "JBSWY3DPEHPK3PXP"
 
-# Open Any URL
-python scripts/bridge.py open "https://stickitup.xyz"
+# Scan active page for anti-bot challenges
+python scripts/bridge.py captcha --filter "login"
 
-# Evaluate JavaScript inside tab
-python scripts/bridge.py eval "document.title" --filter "stickitup"
+# Dispatch genuine hardware key (e.g., toggle fullscreen on video)
+python scripts/bridge.py key "f" --code "KeyF" --vk 70 --filter "crunchyroll"
+
+# Click element semantically using ARIA or visible text
+python scripts/bridge.py click "Send" --role "button" --filter "mail"
+
+# Fill input semantically
+python scripts/bridge.py fill "Search" "One Piece" --enter
+
+# Trigger 3-Second Audio/Visual Human Handoff
+python scripts/bridge.py handoff --reason "Payment QR Scan"
 ```
 
 ---
 
-## 📁 Repository Structure
+## 🔒 Permission & Safety Architecture
 
-```text
-browser-bridge/
-├── SKILL.md              # Agent skill manifest & permission inheritance rules
-├── README.md             # Complete open source documentation
-├── LICENSE               # MIT License
-├── requirements.txt      # Python dependencies
-├── pyproject.toml        # Package & CLI metadata
-└── scripts/
-    ├── bridge.py         # Unified CLI (Edge & Chrome via Port 9222)
-    ├── cdp_engine.py     # Resilient CDP WebSocket protocol client
-    ├── cdp_client.py     # Low-level DevTools protocol client
-    └── os_automation.py  # Native UI automation fallback helpers
+```
+User Prompt: "Send 3 emails to X asking for name, age, address"
+               │
+               ▼
+[Intent Analysis]: Explicit user order with full permission?
+               │
+        ┌──────┴──────┐
+       YES            NO
+        │              │
+        ▼              ▼
+[Pre-Approved Mode]  [Interactive Mode]
+- Zero intermediate   - Drafts only
+  prompts             - Pauses for approval
+- Full execution &      before send/checkout
+  live proof report
 ```
 
 ---
 
-## 🛡️ License
-
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
-
-Developed with ❤️ by [ATP0925](https://github.com/ATP0925).
+## 📄 License
+MIT License. Created by [ATP0925](https://github.com/ATP0925).
