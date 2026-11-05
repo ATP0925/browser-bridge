@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "browser-bridge"
+version = "1.0.0"
+description = "Universal desktop browser bridge for AI coding agents to control live Microsoft Edge and Google Chrome sessions via CDP."
+readme = "README.md"
+authors = [{ name = "ATP0925" }]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31.0",
+    "websocket-client>=1.7.0",
+    "pyautogui>=0.9.54",
+    "pyperclip>=1.8.2",
+    "Pillow>=10.0.0"
+]
+
+[project.scripts]
+browser-bridge = "scripts.bridge:main"
+
+[project.urls]
+Homepage = "https://github.com/ATP0925/browser-bridge"
+Repository = "https://github.com/ATP0925/browser-bridge"
