@@ -63,3 +63,4 @@ if __name__ == "__main__":
             print("No active challenge detected on current tab.")
     else:
         print("Authorized Browser not running.")
+

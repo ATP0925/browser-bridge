@@ -60,3 +60,4 @@ if __name__ == "__main__":
     code = generate_totp(test_secret)
     rem = get_remaining_seconds()
     print(f"Generated TOTP: {code} (Valid for {rem}s)")
+

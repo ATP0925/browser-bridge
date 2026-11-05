@@ -15,6 +15,7 @@ sys.path.insert(0, SCRIPT_DIR)
 from cdp_engine import CDPEngine, find_active_port
 import totp_helper
 from handoff import execute_handoff_checkpoint
+import profile_manager
 
 LAUNCHER_PATH = os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat")
 
@@ -44,7 +45,18 @@ def cmd_status():
         print(f"   {LAUNCHER_PATH}")
         print("   or execute: python bridge.py launch")
 
-def cmd_launch():
+def cmd_profiles():
+    profile_manager.list_profiles()
+
+def cmd_sync(args):
+    profile_manager.sync_data(args.profile)
+
+def cmd_launch(args=None):
+    profile_key = getattr(args, "profile", None) if args else None
+    if profile_key and profile_key in profile_manager.PROFILES_DEF:
+        profile_manager.launch_profile(profile_key)
+        return
+
     print(f"Launching Authorized AI Browser via: {LAUNCHER_PATH} ...")
     if os.path.isfile(LAUNCHER_PATH):
         subprocess.Popen(["cmd.exe", "/c", LAUNCHER_PATH], shell=False)
@@ -132,7 +144,12 @@ def main():
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("status", help="Inspect Authorized Browser connection and active tabs")
-    sub.add_parser("launch", help="Launch the Authorized AI Browser using desktop launcher")
+    p_launch = sub.add_parser("launch", help="Launch the Authorized AI Browser using desktop launcher")
+    p_launch.add_argument("--profile", help="Target profile to launch (edge_maruti, chrome_college, chrome_personal)")
+
+    sub.add_parser("profiles", help="List all detected official browser profiles and accounts")
+    p_sync = sub.add_parser("sync", help="Sync official browser data into isolated AI profile")
+    p_sync.add_argument("--profile", default="edge_maruti", help="Source profile to sync from")
 
     p_gmail = sub.add_parser("gmail", help="Open pre-filled Gmail compose tab")
     p_gmail.add_argument("--to", required=True, help="Recipient email address")
@@ -177,7 +194,9 @@ def main():
 
     dispatch = {
         "status": cmd_status,
-        "launch": cmd_launch,
+        "launch": lambda: cmd_launch(args),
+        "profiles": cmd_profiles,
+        "sync": lambda: cmd_sync(args),
         "gmail": lambda: cmd_gmail(args),
         "open": lambda: cmd_open(args),
         "eval": lambda: cmd_eval(args),
