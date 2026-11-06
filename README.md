@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows / Linux / macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-brightgreen.svg)]()
+[![Tests: 10 passing](https://img.shields.io/badge/tests-10%20passing-brightgreen.svg)]()
 [![Protocol: CDP + ARIA](https://img.shields.io/badge/Engine-CDP%20%2B%20ARIA%20%2B%20TOTP-purple.svg)]()
 
 > Direct desktop browser integration for autonomous AI coding agents (Antigravity / Claude Code / Codex). Bridges sandbox isolation, connects to an isolated browser profile on CDP port `9222`, and implements the **Context-Aware Intent Inheritance (गृहीत कार्यप्रणाली)** protocol.
