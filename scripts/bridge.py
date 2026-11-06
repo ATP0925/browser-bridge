@@ -12,12 +12,12 @@ import subprocess
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
-from cdp_engine import CDPEngine, find_active_port
+from cdp_engine import CDPEngine, find_active_port, resolve_launcher_path
 import totp_helper
 from handoff import execute_handoff_checkpoint
 import profile_manager
 
-LAUNCHER_PATH = os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat")
+LAUNCHER_PATH = resolve_launcher_path()
 
 def cmd_status():
     print("=" * 65)
@@ -44,6 +44,18 @@ def cmd_status():
         print(f"💡 To start it, run your desktop shortcut:")
         print(f"   {LAUNCHER_PATH}")
         print("   or execute: python bridge.py launch")
+
+def cmd_screenshot(args):
+    port, _ = find_active_port()
+    if not port:
+        print("[Error]: Authorized Browser is offline.")
+        return
+    engine = CDPEngine(port=port)
+    ok, msg = engine.capture_screenshot(output_path=args.out, tab_url_filter=args.filter)
+    if ok:
+        print(f"📸 {msg}")
+    else:
+        print(f"❌ Screenshot failed: {msg}")
 
 def cmd_profiles():
     profile_manager.list_profiles()
@@ -193,6 +205,10 @@ def main():
     p_handoff.add_argument("--reason", default="Manual checkpoint", help="Reason for handoff")
     p_handoff.add_argument("--filter", help="Target tab filter")
 
+    p_shot = sub.add_parser("screenshot", help="Capture visual screenshot of active authorized browser tab")
+    p_shot.add_argument("--out", default="screenshot.png", help="Output file path (e.g. proof.png)")
+    p_shot.add_argument("--filter", help="Target tab filter")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -208,7 +224,8 @@ def main():
         "key": lambda: cmd_key(args),
         "totp": lambda: cmd_totp(args),
         "captcha": lambda: cmd_captcha(args),
-        "handoff": lambda: cmd_handoff(args)
+        "handoff": lambda: cmd_handoff(args),
+        "screenshot": lambda: cmd_screenshot(args)
     }
 
     if args.command in dispatch:

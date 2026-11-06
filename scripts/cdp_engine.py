@@ -20,6 +20,17 @@ SENSITIVE_KEYWORDS = [
     "delete", "remove", "destroy", "password", "transfer"
 ]
 
+def resolve_launcher_path() -> str:
+    """Dynamically resolves Desktop vs OneDrive/Desktop launcher location."""
+    candidates = [
+        os.path.expandvars(r"%USERPROFILE%\Desktop\Launch_AI_Authorized_Browser.bat"),
+        os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat")
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return candidates[0]
+
 def find_active_port():
     """Probe common CDP ports, prioritizing the Authorized Browser on 9222."""
     for port in COMMON_PORTS:
@@ -56,7 +67,7 @@ class CDPEngine:
     def open_tab(self, url):
         """Open a new tab in the Authorized Browser via CDP Target API."""
         if not self.port:
-            launcher = os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Browser.bat")
+            launcher = resolve_launcher_path()
             if os.path.isfile(launcher):
                 subprocess.Popen(["cmd.exe", "/c", launcher], shell=False)
                 time.sleep(3)
@@ -123,6 +134,24 @@ class CDPEngine:
             if res.get("id") == cmd_id:
                 return res
         raise TimeoutError(f"CDP command {method} timed out waiting for ID {cmd_id}")
+
+    def capture_screenshot(self, output_path: str = "screenshot.png", tab_url_filter: str = None):
+        """Captures active page screenshot via CDP Page.captureScreenshot."""
+        import base64
+        ws, target = self._get_target_ws(tab_url_filter)
+        if not ws:
+            return False, "No active tab found"
+        try:
+            res = self._cdp_call(ws, "Page.captureScreenshot", {"format": "png"})
+            ws.close()
+            data = res.get("result", {}).get("data")
+            if data:
+                with open(output_path, "wb") as f:
+                    f.write(base64.b64decode(data))
+                return True, f"Screenshot saved to {output_path}"
+            return False, "No image data returned from CDP"
+        except Exception as e:
+            return False, str(e)
 
     def evaluate_script(self, expression, tab_url_filter=None):
         """Evaluate JS in an active tab with robust response ID matching."""

@@ -73,3 +73,4 @@ if __name__ == "__main__":
     else:
         print("[✓] PII Guard: Diff is clean. Zero unapproved personal details detected.")
         sys.exit(0)
+
