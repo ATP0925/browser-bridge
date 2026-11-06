@@ -16,14 +16,18 @@ BRAVE_EXE = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe
 PORT = 9222
 
 def clean_locks():
-    if os.path.exists(PROFILE_DIR):
-        for root, dirs, files in os.walk(PROFILE_DIR):
-            for f in files:
-                if 'lock' in f.lower() or 'singleton' in f.lower():
-                    try:
-                        os.remove(os.path.join(root, f))
-                    except Exception:
-                        pass
+    """Remove only top-level browser lock files that prevent launch. Never recurse into subdirs."""
+    if not os.path.exists(PROFILE_DIR):
+        return
+    # Only clean specific known lock files at the profile root
+    lock_files = ["SingletonLock", "SingletonCookie", "SingletonSocket"]
+    for lock_name in lock_files:
+        lock_path = os.path.join(PROFILE_DIR, lock_name)
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception:
+                pass
 
 def is_live():
     try:

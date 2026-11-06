@@ -20,14 +20,10 @@ import profile_manager
 LAUNCHER_PATH = resolve_launcher_path()
 
 def cmd_status():
-    print("=" * 65)
-    print(" 🛡️  AUTHORIZED AI BROWSER BRIDGE — LIVE STATUS")
-    print("=" * 65)
-    
     port, browser = find_active_port()
     if port:
-        print(f"✅ Connection Status : ACTIVE & CONNECTED")
-        print(f"📍 Authorized Port   : {port}")
+        print(f"\n🌐 Authorized AI Browser Status:")
+        print(f"   ✅ Status: CONNECTED on port {port}")
         print(f"🚀 Browser Engine    : {browser}")
         print(f"📁 Isolated Profile  : %USERPROFILE%\\.authorized_ai_browser")
         print(f"🔒 Safety Protocol   : ENFORCED (Pre-Approved Intent Protocol active)")

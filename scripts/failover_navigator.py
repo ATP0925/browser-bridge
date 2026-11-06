@@ -25,7 +25,7 @@ import cdp_engine
 import spawn_brave_independent
 
 CHROME_EXE = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-CHROME_PROFILE = os.path.expanduser(r"~\.authorized_ai_browser")
+CHROME_PROFILE = os.path.expanduser(r"~\.authorized_ai_fallback_chrome")
 CHROME_PORT = 9223
 
 BRAVE_PORT = 9222
