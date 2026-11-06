@@ -1,52 +1,72 @@
 """
 Multi-Browser Profile Manager for Browser Bridge.
 Maps and connects official Chrome and Edge profiles to the AI agent:
-1. Edge Default -> atpadkarmaruti@gmail.com
-2. Chrome Profile 2 -> vu4f2526072@pvppcoe.ac.in (College)
-3. Chrome Default -> atpadkarpratik00925@gmail.com (Personal)
-4. Authorized AI Browser -> Isolated 9222 profile
+1. Edge Default -> Primary Profile
+2. Chrome Profile 2 -> Academic / Secondary Profile
+3. Chrome Default -> Personal Profile
+4. Dedicated AI Browser -> Isolated 9222 profile
 """
 import os
 import json
 import shutil
 import subprocess
 
+def _get_profile_identity(data_dir: str, profile_dir: str, fallback_label: str) -> str:
+    """Discover profile identity dynamically from browser Local State JSON file, or fallback to generic placeholder."""
+    try:
+        local_state_path = os.path.join(data_dir, "Local State")
+        if os.path.isfile(local_state_path):
+            with open(local_state_path, "r", encoding="utf-8") as f:
+                state = json.load(f)
+            info_cache = state.get("profile", {}).get("info_cache", {})
+            profile_info = info_cache.get(profile_dir, {})
+            user_name = profile_info.get("user_name") or profile_info.get("name")
+            if user_name:
+                return user_name
+    except Exception:
+        pass
+    return fallback_label
+
+_EDGE_DATA = os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\User Data")
+_CHROME_DATA = os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data")
+_BRAVE_DATA = os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data")
+
 PROFILES_DEF = {
     "brave_personal": {
-        "name": "Brave (Personal & AcadFlow)",
+        "name": f"Brave ({_get_profile_identity(_BRAVE_DATA, 'Default', 'Personal & Workspace')})",
         "browser": "brave",
         "port": 9226,
         "exe": r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
-        "data_dir": os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data"),
+        "data_dir": _BRAVE_DATA,
         "profile_dir": "Default",
         "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_brave"),
         "launcher": os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Brave.bat")
     },
-    "edge_maruti": {
-        "name": "Edge (atpadkarmaruti@gmail.com)",
+    "edge_default": {
+        "name": f"Edge ({_get_profile_identity(_EDGE_DATA, 'Default', 'Primary Profile')})",
         "browser": "edge",
         "port": 9225,
         "exe": r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        "data_dir": os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\User Data"),
+        "data_dir": _EDGE_DATA,
         "profile_dir": "Default",
         "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_edge"),
         "launcher": os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop\Launch_AI_Authorized_Edge.bat")
     },
     "chrome_college": {
-        "name": "Chrome College (vu4f2526072@pvppcoe.ac.in)",
+        "name": f"Chrome College ({_get_profile_identity(_CHROME_DATA, 'Profile 2', 'Academic Profile')})",
         "browser": "chrome",
         "port": 9224,
         "exe": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        "data_dir": os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data"),
+        "data_dir": _CHROME_DATA,
         "profile_dir": "Profile 2",
         "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_college")
     },
     "chrome_personal": {
-        "name": "Chrome Personal (atpadkarpratik00925@gmail.com)",
+        "name": f"Chrome Personal ({_get_profile_identity(_CHROME_DATA, 'Default', 'Personal Profile')})",
         "browser": "chrome",
         "port": 9223,
         "exe": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        "data_dir": os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data"),
+        "data_dir": _CHROME_DATA,
         "profile_dir": "Default",
         "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_personal")
     },
@@ -60,6 +80,8 @@ PROFILES_DEF = {
         "ai_clone_dir": os.path.expandvars(r"%USERPROFILE%\.authorized_ai_browser")
     }
 }
+# Backward-compatibility alias
+PROFILES_DEF["edge_maruti"] = PROFILES_DEF["edge_default"]
 
 def list_profiles():
     print("=" * 70)
@@ -74,7 +96,7 @@ def list_profiles():
         print(f"  * Status   : {'Available on disk' if exists else 'Not found'}")
         print()
 
-def sync_data(source_key="edge_maruti", dest_dir=None):
+def sync_data(source_key="edge_default", dest_dir=None):
     """
     Safely clone session state, history, and preferences from official browser
     to AI profile directory without locking.
@@ -123,7 +145,7 @@ def sync_data(source_key="edge_maruti", dest_dir=None):
     print(f"[✓] Successfully synced {synced} data elements from {src_info['name']}!")
     return True
 
-def launch_profile(profile_key="edge_maruti"):
+def launch_profile(profile_key="edge_default"):
     """Launch the chosen official browser profile with CDP debugging enabled."""
     if profile_key not in PROFILES_DEF:
         print(f"Unknown profile '{profile_key}'")
@@ -154,11 +176,10 @@ def launch_profile(profile_key="edge_maruti"):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "launch":
-        key = sys.argv[2] if len(sys.argv) > 2 else "edge_maruti"
+        key = sys.argv[2] if len(sys.argv) > 2 else "edge_default"
         launch_profile(key)
     elif len(sys.argv) > 1 and sys.argv[1] == "sync":
-        key = sys.argv[2] if len(sys.argv) > 2 else "edge_maruti"
+        key = sys.argv[2] if len(sys.argv) > 2 else "edge_default"
         sync_data(key)
     else:
         list_profiles()
-

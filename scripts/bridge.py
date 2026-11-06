@@ -9,6 +9,13 @@ import os
 import argparse
 import subprocess
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
@@ -156,11 +163,11 @@ def main():
 
     sub.add_parser("status", help="Inspect Authorized Browser connection and active tabs")
     p_launch = sub.add_parser("launch", help="Launch the Authorized AI Browser using desktop launcher")
-    p_launch.add_argument("--profile", help="Target profile to launch (edge_maruti, chrome_college, chrome_personal)")
+    p_launch.add_argument("--profile", help="Target profile to launch (edge_default, chrome_college, chrome_personal)")
 
     sub.add_parser("profiles", help="List all detected official browser profiles and accounts")
     p_sync = sub.add_parser("sync", help="Sync official browser data into isolated AI profile")
-    p_sync.add_argument("--profile", default="edge_maruti", help="Source profile to sync from")
+    p_sync.add_argument("--profile", default="edge_default", help="Source profile to sync from")
 
     p_gmail = sub.add_parser("gmail", help="Open pre-filled Gmail compose tab")
     p_gmail.add_argument("--to", required=True, help="Recipient email address")

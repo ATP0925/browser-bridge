@@ -288,9 +288,15 @@ class CDPEngine:
             if (target) {{
                 target.focus();
                 if (target.tagName === 'DIV') {{
-                    target.innerHTML = val;
+                    target.textContent = val;
                 }} else {{
-                    target.value = val;
+                    const proto = target instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                    const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+                    if (descriptor && descriptor.set) {{
+                        descriptor.set.call(target, val);
+                    }} else {{
+                        target.value = val;
+                    }}
                 }}
                 target.dispatchEvent(new Event('input', {{bubbles: true}}));
                 target.dispatchEvent(new Event('change', {{bubbles: true}}));

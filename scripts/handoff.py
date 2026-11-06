@@ -19,8 +19,13 @@ def trigger_audio_alert(message: str):
             pass
     # Windows native SAPI fallback
     try:
-        ps_code = f'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("{message}")'
-        subprocess.Popen(["powershell", "-Command", ps_code])
+        ps_script = '''
+Add-Type -AssemblyName System.Speech
+$text = [Console]::In.ReadToEnd()
+$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$synth.Speak($text)
+'''
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], input=message, text=True, timeout=10, capture_output=True)
     except Exception:
         print(f"\a[AUDIO ALERT]: {message}")
 
