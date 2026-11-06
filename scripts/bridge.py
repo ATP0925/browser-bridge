@@ -104,7 +104,12 @@ def cmd_gmail(args):
         time.sleep(3)
         engine = CDPEngine()
 
-    success, msg = engine.open_tab(f"https://mail.google.com/mail/u/0/?view=cm&fs=1&to={args.to}&su={args.subject}&body={args.body}")
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "view": "cm", "fs": "1",
+        "to": args.to, "su": args.subject, "body": args.body
+    })
+    success, msg = engine.open_tab(f"https://mail.google.com/mail/u/0/?{params}")
     if success:
         print(f"\n✅ {msg}")
         print("👉 Pre-filled draft is ready in your Authorized Browser.")

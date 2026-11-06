@@ -87,7 +87,7 @@ class CDPEngine:
                     ws.send(json.dumps(cmd))
                     resp = json.loads(ws.recv())
                     ws.close()
-                    target_id = resp.get("result", {}).get("targetId")
+                    target_id = (resp.get("result") or {}).get("targetId")
                     return True, f"Opened via Authorized CDP (Target: {target_id})"
             except Exception:
                 try:
@@ -116,12 +116,15 @@ class CDPEngine:
         if not target or not target.get("webSocketDebuggerUrl"):
             return None, None
 
-        ws = websocket.create_connection(
-            target["webSocketDebuggerUrl"],
-            timeout=8,
-            suppress_origin=True
-        )
-        return ws, target
+        try:
+            ws = websocket.create_connection(
+                target["webSocketDebuggerUrl"],
+                timeout=8,
+                suppress_origin=True
+            )
+            return ws, target
+        except (websocket.WebSocketException, ConnectionError, TimeoutError, OSError) as e:
+            return None, f"WebSocket connection failed: {e}"
 
     def _cdp_call(self, ws, method, params=None):
         """Send a CDP command and wait strictly for the matching ID response."""
@@ -140,11 +143,11 @@ class CDPEngine:
         import base64
         ws, target = self._get_target_ws(tab_url_filter)
         if not ws:
-            return False, "No active tab found"
+            return False, target if isinstance(target, str) else "No active tab found"
         try:
             res = self._cdp_call(ws, "Page.captureScreenshot", {"format": "png"})
             ws.close()
-            data = res.get("result", {}).get("data")
+            data = (res.get("result") or {}).get("data")
             if data:
                 with open(output_path, "wb") as f:
                     f.write(base64.b64decode(data))
@@ -159,7 +162,8 @@ class CDPEngine:
             return None, "Authorized Browser CDP not connected"
         ws, target = self._get_target_ws(tab_url_filter)
         if not ws:
-            return None, f"No matching tab found for filter '{tab_url_filter}'"
+            err = target if isinstance(target, str) else f"No matching tab found for filter '{tab_url_filter}'"
+            return None, err
 
         try:
             res = self._cdp_call(ws, "Runtime.evaluate", {
@@ -168,7 +172,12 @@ class CDPEngine:
                 "awaitPromise": True
             })
             ws.close()
-            return res.get("result", {}).get("result", {}).get("value"), None
+            result = res.get("result") or {}
+            if "exceptionDetails" in result:
+                exc = result["exceptionDetails"]
+                err_text = exc.get("text", "") or (exc.get("exception") or {}).get("description", "Unknown JS error")
+                return None, f"JavaScript error: {err_text}"
+            return ((res.get("result") or {}).get("result") or {}).get("value"), None
         except Exception as e:
             if ws:
                 ws.close()
@@ -195,7 +204,7 @@ class CDPEngine:
         """
         ws, target = self._get_target_ws(tab_url_filter)
         if not ws:
-            return False, "Target tab not found"
+            return False, target if isinstance(target, str) else "Target tab not found"
 
         try:
             self._cdp_call(ws, "Input.dispatchKeyEvent", {

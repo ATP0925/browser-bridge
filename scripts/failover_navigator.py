@@ -23,12 +23,10 @@ if SCRIPT_DIR not in sys.path:
 
 import cdp_engine
 import spawn_brave_independent
+from config import BRAVE_PORT, CHROME_PORT, FALLBACK_CHROME_PROFILE
 
 CHROME_EXE = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-CHROME_PROFILE = os.path.expanduser(r"~\.authorized_ai_fallback_chrome")
-CHROME_PORT = 9223
-
-BRAVE_PORT = 9222
+CHROME_PROFILE = FALLBACK_CHROME_PROFILE
 
 ERROR_INDICATORS = [
     "chrome-error://",

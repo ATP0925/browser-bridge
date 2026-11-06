@@ -48,5 +48,71 @@ class TestBrowserBridge(unittest.TestCase):
         self.assertNotIn("innerHTML", src)
         self.assertIn("textContent", src)
 
+    def test_config_centralization(self):
+        import config
+        self.assertEqual(config.BRAVE_PORT, 9222)
+        self.assertEqual(config.CHROME_PORT, 9223)
+        self.assertTrue(config.BRAVE_PROFILE.endswith(".authorized_ai_brave"))
+        self.assertTrue(config.CHROME_PROFILE.endswith(".authorized_ai_browser"))
+        self.assertTrue(config.FALLBACK_CHROME_PROFILE.endswith(".authorized_ai_fallback_chrome"))
+
+    def test_cdp_engine_websocket_exception_handling(self):
+        from unittest.mock import patch
+        import websocket
+        from cdp_engine import CDPEngine
+
+        engine = CDPEngine(port=9222)
+        with patch.object(engine, "get_tabs", return_value=[{"url": "http://example.com", "webSocketDebuggerUrl": "ws://dummy"}]):
+            with patch("websocket.create_connection", side_effect=websocket.WebSocketException("Connection refused")):
+                ws, err = engine._get_target_ws()
+                self.assertIsNone(ws)
+                self.assertIn("WebSocket connection failed", err)
+
+    def test_cdp_engine_evaluate_script_exception_details(self):
+        from unittest.mock import patch, MagicMock
+        from cdp_engine import CDPEngine
+
+        engine = CDPEngine(port=9222)
+        mock_ws = MagicMock()
+        with patch.object(engine, "_get_target_ws", return_value=(mock_ws, {"url": "http://test"})):
+            with patch.object(engine, "_cdp_call", return_value={
+                "id": 1,
+                "result": {
+                    "result": {"type": "undefined"},
+                    "exceptionDetails": {
+                        "text": "Uncaught ReferenceError: foo is not defined",
+                        "exception": {"description": "ReferenceError: foo is not defined"}
+                    }
+                }
+            }):
+                val, err = engine.evaluate_script("foo()")
+                self.assertIsNone(val)
+                self.assertIn("JavaScript error: Uncaught ReferenceError", err)
+
+    def test_cdp_engine_null_result_safety(self):
+        from unittest.mock import patch, MagicMock
+        from cdp_engine import CDPEngine
+
+        engine = CDPEngine(port=9222)
+        mock_ws = MagicMock()
+        # CDP response where "result" is None
+        with patch.object(engine, "_get_target_ws", return_value=(mock_ws, {"url": "http://test"})):
+            with patch.object(engine, "_cdp_call", return_value={"id": 1, "result": None}):
+                val, err = engine.evaluate_script("1 + 1")
+                self.assertIsNone(val)
+                self.assertIsNone(err)
+
+    def test_gmail_url_encoding(self):
+        import urllib.parse
+        to_addr = "test@example.com"
+        subject = "Hello & Welcome = World"
+        body = "Line 1\nLine 2 & more"
+        params = urllib.parse.urlencode({
+            "view": "cm", "fs": "1",
+            "to": to_addr, "su": subject, "body": body
+        })
+        self.assertIn("su=Hello+%26+Welcome+%3D+World", params)
+        self.assertIn("body=Line+1%0ALine+2+%26+more", params)
+
 if __name__ == "__main__":
     unittest.main()
