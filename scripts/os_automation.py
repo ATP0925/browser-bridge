@@ -73,6 +73,11 @@ def focus_chrome():
     if target_hwnd[0]:
         try:
             user32.AllowSetForegroundWindow(-1)
+            # Restore window if minimized to taskbar
+            if user32.IsIconic(target_hwnd[0]):
+                user32.ShowWindow(target_hwnd[0], 9)  # SW_RESTORE
+            else:
+                user32.ShowWindow(target_hwnd[0], 5)  # SW_SHOW
             user32.SwitchToThisWindow(target_hwnd[0], True)
             user32.SetForegroundWindow(target_hwnd[0])
             time.sleep(0.1)
