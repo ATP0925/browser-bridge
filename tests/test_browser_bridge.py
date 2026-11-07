@@ -121,5 +121,11 @@ class TestBrowserBridge(unittest.TestCase):
         focused = focus_chrome()
         self.assertIsInstance(focused, bool)
 
+    def test_get_chrome_user_data_dir_no_crash(self):
+        from scripts.browser_bridge import get_chrome_user_data_dir
+        res = get_chrome_user_data_dir()
+        self.assertIsInstance(res, str)
+        self.assertTrue(len(res) > 0)
+
 if __name__ == "__main__":
     unittest.main()

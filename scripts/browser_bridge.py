@@ -31,23 +31,13 @@ DEFAULT_CDP_PORT = 9222
 
 
 def get_chrome_user_data_dir():
-    """Find Chrome's user data directory from running process."""
-    r = subprocess.run(
-        ["Get-CimInstance", "Win32_Process", "-Filter",
-         "Name='chrome.exe'"],
-        capture_output=True, text=True, shell=False
-    )
-    # Fallback to default
-    default = os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data")
-    if os.path.isdir(default):
-        return default
-
-    # Try parsing from process command line
+    """Find Chrome's user data directory from running process or default location."""
+    # Try parsing from process command line via powershell
     try:
         r = subprocess.run(
-            ["powershell", "-Command",
-             "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Select-Object -First 1 -ExpandProperty CommandLine"],
-            capture_output=True, text=True
+            ["powershell", "-NoProfile", "-Command",
+             "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe' or Name='brave.exe'\" | Select-Object -First 1 -ExpandProperty CommandLine"],
+            capture_output=True, text=True, timeout=5
         )
         cmdline = r.stdout.strip()
         if "--user-data-dir=" in cmdline:
@@ -57,6 +47,18 @@ def get_chrome_user_data_dir():
             return part.split(" ")[0]
     except Exception:
         pass
+
+    # Fallback to defaults
+    candidates = [
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data"),
+        os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\User Data")
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+
+    return candidates[0]
 
     return default
 
