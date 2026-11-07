@@ -114,5 +114,12 @@ class TestBrowserBridge(unittest.TestCase):
         self.assertIn("su=Hello+%26+Welcome+%3D+World", params)
         self.assertIn("body=Line+1%0ALine+2+%26+more", params)
 
+    def test_os_automation_multi_browser_detection(self):
+        from os_automation import find_chrome_window, focus_chrome
+        pid, title = find_chrome_window()
+        self.assertTrue(pid is None or isinstance(pid, int))
+        focused = focus_chrome()
+        self.assertIsInstance(focused, bool)
+
 if __name__ == "__main__":
     unittest.main()

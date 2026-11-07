@@ -14,62 +14,84 @@ pyautogui.PAUSE = 0.3
 
 
 def find_chrome_window():
-    """Find Chrome's main window PID and title via tasklist."""
-    r = subprocess.run(
-        ["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/V", "/FO", "CSV"],
-        capture_output=True, text=True
-    )
-    for line in r.stdout.strip().split("\n"):
-        if "Google Chrome" in line and "N/A" not in line.split(",")[-1]:
-            parts = line.strip('"').split('","')
-            pid = int(parts[1])
-            title = parts[-1].strip('"')
-            return pid, title
+    """Finds Brave, Chrome, or Edge main window PID and title via tasklist."""
+    target_images = ["brave.exe", "chrome.exe", "msedge.exe"]
+    for img in target_images:
+        r = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {img}", "/V", "/FO", "CSV"],
+            capture_output=True, text=True
+        )
+        for line in r.stdout.strip().split("\n"):
+            if line and "N/A" not in line.split(",")[-1]:
+                parts = line.strip('"').split('","')
+                if len(parts) >= 2:
+                    try:
+                        pid = int(parts[1])
+                        title = parts[-1].strip('"')
+                        if title and title != "N/A":
+                            return pid, title
+                    except ValueError:
+                        continue
     return None, None
 
 
 def focus_chrome():
-    """Bring Chrome to the foreground using Alt+Tab fallback."""
-    import ctypes
-    import ctypes.wintypes as w
-
+    """Bring Brave, Chrome, or Edge to foreground reliably using SwitchToThisWindow."""
+    import os, ctypes
     user32 = ctypes.windll.user32
 
-    # Find Chrome window handle via tasklist PID approach
-    r = subprocess.run(
-        ["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/V", "/FO", "CSV"],
-        capture_output=True, text=True
-    )
-    target_pid = None
-    for line in r.stdout.strip().split("\n"):
-        if "Google Chrome" in line:
-            parts = line.strip('"').split('","')
-            target_pid = int(parts[1])
-            break
+    # Attach to interactive user desktop
+    try:
+        h_desk = user32.OpenDesktopW("default", 0, False, 0x01FF)
+        if h_desk:
+            user32.SetThreadDesktop(h_desk)
+    except Exception:
+        h_desk = None
 
-    if target_pid:
-        # Use PowerShell to activate window by PID
-        ps_cmd = f"""
-        Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices;
-        public class Win {{ [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); }}'
-        $p = Get-Process -Id {target_pid} -ErrorAction SilentlyContinue
-        if ($p -and $p.MainWindowHandle -ne [IntPtr]::Zero) {{
-            [Win]::ShowWindow($p.MainWindowHandle, 9)
-            [Win]::SetForegroundWindow($p.MainWindowHandle)
-        }}
-        """
-        subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True)
-        time.sleep(0.5)
+    target_pid, _ = find_chrome_window()
+    if not target_pid:
+        return False
+
+    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    target_hwnd = [None]
+
+    def cb(hwnd, _):
+        if user32.IsWindowVisible(hwnd):
+            pid = ctypes.c_ulong()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            if pid.value == target_pid:
+                target_hwnd[0] = hwnd
+                return False
         return True
+
+    cb_func = WNDENUMPROC(cb)
+    if h_desk:
+        user32.EnumDesktopWindows(h_desk, cb_func, 0)
+    else:
+        user32.EnumWindows(cb_func, 0)
+
+    if target_hwnd[0]:
+        try:
+            user32.AllowSetForegroundWindow(-1)
+            user32.SwitchToThisWindow(target_hwnd[0], True)
+            user32.SetForegroundWindow(target_hwnd[0])
+            time.sleep(0.1)
+            return True
+        except Exception:
+            pass
     return False
 
 
 def open_url_in_chrome(url):
-    """Open a URL in Chrome using Ctrl+T then pasting URL."""
+    """Open a URL in Brave/Chrome using Ctrl+T then pasting URL."""
+    import os
     if not focus_chrome():
-        # Fallback: use start command
-        subprocess.Popen(["start", "chrome", url], shell=True)
+        # Fallback: check Brave first (default for Browser Bridge), then system default
+        brave_path = os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe")
+        if os.path.isfile(brave_path):
+            subprocess.Popen([brave_path, url])
+        else:
+            subprocess.Popen(["start", url], shell=True)
         time.sleep(2)
         return True
 
